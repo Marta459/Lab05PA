@@ -1,4 +1,6 @@
 import flet as ft
+
+import deposito_strumenti
 from alert import AlertManager
 from deposito_strumenti import DepositoStrumenti
 
@@ -36,7 +38,37 @@ def main(page: ft.Page):
     lista_strumenti = ft.ListView(expand=True, spacing=5, padding=10, auto_scroll=True)
 
     # Tutti i TextField per le info necessarie per aggiungere un nuovo strumento (tipo, marca, anno, contatore posti)
-    # TODO
+    txt_tipo = ft.TextField(label="Tipo di strumento", width=250)
+    txt_marca = ft.TextField(label="Marca", width=250)
+    txt_anno = ft.TextField(label="Anno di acquisto", width=250)
+
+    valore_contatore = 0
+    txt_valore_contatore = ft.Text(value=str(valore_contatore),
+            size=20)
+
+    def decrementa_valore(e):
+        nonlocal valore_contatore # serve per dire a python di usare una variabile esterna
+        if valore_contatore > 0:
+            valore_contatore -= 10
+            txt_valore_contatore.value = str(valore_contatore)
+            page.update()
+
+    def incrementa_valore(e):
+        nonlocal valore_contatore
+        valore_contatore += 10
+        txt_valore_contatore.value = str(valore_contatore)
+        page.update()
+
+    sezione_contatore = ft.Row(
+        controls=[
+            ft.Text(value="Valore (€):", size=16),
+            ft.Button("-", on_click=decrementa_valore, width=40),
+            txt_valore_contatore,
+            ft.Button("+", on_click=incrementa_valore, width=40),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+    )
+
 
     # --- FUNZIONI APP ---
     def aggiorna_lista_strumenti():
@@ -44,6 +76,7 @@ def main(page: ft.Page):
         for strumento in deposito.strumenti_ordinati_per_marca():
             stato = "✅" if strumento.disponibile else "⛔"
             lista_strumenti.controls.append(ft.Text(f"{stato} {strumento}"))
+        lista_strumenti.update()
 
     # --- HANDLERS APP ---
     def cambia_tema(e):
@@ -55,16 +88,84 @@ def main(page: ft.Page):
         txt_responsabile.value = f"Responsabile: {deposito.get_responsabile()}"
 
     # Handlers per la gestione dei pulsanti utili all'inserimento di un nuovo strumento
-    # TODO
+    def aggiungi_strumento_click(e):
+        nonlocal valore_contatore
+        tipo = txt_tipo.value.strip() if txt_tipo.value else ""
+        marca = txt_marca.value.strip() if txt_marca.value else ""
+        anno= txt_anno.value.strip() if txt_anno.value else ""
+
+        if not tipo or not marca or not anno:
+            alert.show_alert("Tutti i campi devono essere compilati!")
+            return
+
+        try:
+            deposito.aggiungi_strumento(tipo, marca, anno, valore_contatore)
+        except Exception as ex:
+            alert.show_alert(f"Errore: {ex}")
+            return
+
+            # Pulizia campi
+        txt_tipo.value = ""
+        txt_marca.value = ""
+        txt_anno.value = ""
+        valore_contatore = 0
+        txt_valore_contatore.value = "0"
+
+        aggiorna_lista_strumenti()
+        page.update()
+
+        colonna_sinistra = ft.Column(
+            controls=[
+                ft.Text("Elenco Strumenti", size=20, weight=ft.FontWeight.BOLD),
+                lista_strumenti,
+            ],
+            expand=True,
+        )
+
+        colonna_destra = ft.Column(
+            controls=[
+                ft.Text("Aggiungi Nuovo Strumento", size=20, weight=ft.FontWeight.BOLD),
+                txt_tipo,
+                txt_marca,
+                txt_anno,
+                sezione_contatore,
+                pulsante_aggiungi,
+            ],
+            width=400,
+            spacing=15,
+        )
 
     # --- EVENTI ---
     toggle_cambia_tema = ft.Switch(label="Tema scuro", value=True, on_change=cambia_tema)
     pulsante_conferma_responsabile = ft.Button("Conferma", on_click=conferma_responsabile)
 
     # Pulsanti per la gestione dell'inserimento di un nuovo strumento
-    # TODO
+
+    pulsante_aggiungi = ft.Button("Aggiungi strumento", on_click=aggiungi_strumento_click)
 
     # --- LAYOUT ---
+    colonna_sinistra = ft.Column(
+        controls=[
+            ft.Text("Strumenti", size=20, weight=ft.FontWeight.BOLD),
+            lista_strumenti,
+        ],
+        expand=True,
+    )
+
+    colonna_destra = ft.Column(
+        controls=[
+            ft.Text("Aggiungi Nuovo Strumento", size=20, weight=ft.FontWeight.BOLD),
+            txt_tipo,
+            txt_marca,
+            txt_anno,
+            sezione_contatore,
+            pulsante_aggiungi,
+        ],
+        width=400,
+        spacing=15,
+    )
+
+    # --- LAYOUT PRINCIPALE ---
     page.add(
         toggle_cambia_tema,
 
@@ -75,18 +176,23 @@ def main(page: ft.Page):
 
         # Sezione 2
         ft.Text("Modifica Informazioni", size=20),
-        ft.Row(spacing=200,
-               controls=[input_responsabile, pulsante_conferma_responsabile],
-               alignment=ft.MainAxisAlignment.CENTER),
+        ft.Row(
+            spacing=200,
+            controls=[input_responsabile, pulsante_conferma_responsabile],
+            alignment=ft.MainAxisAlignment.CENTER,
+        ),
 
-        # Sezione 3
-        # TODO
-
-        # Sezione 4
         ft.Divider(),
-        ft.Text("Strumenti", size=20),
-        lista_strumenti,
+        ft.Row(
+            controls=[colonna_sinistra, colonna_destra],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            vertical_alignment=ft.CrossAxisAlignment.START,
+            expand=True,
+        ),
     )
+
     aggiorna_lista_strumenti()
+
+
 
 ft.run(main)
